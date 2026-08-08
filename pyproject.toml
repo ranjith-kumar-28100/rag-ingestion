@@ -1,0 +1,80 @@
+[project]
+name = "rag-ingestion"
+version = "0.1.0"
+description = "Parser-agnostic multi-format document ingestion & chunking (file in -> list[Chunk] out)"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+authors = [{ name = "rag_ingestion" }]
+
+dependencies = [
+    # data models & config
+    "pydantic>=2.9,<3",
+    "pydantic-settings>=2.5,<3",
+    # tabular parsing
+    "pandas>=2.2,<3",
+    "openpyxl>=3.1,<4",
+    # tokenisation
+    "tiktoken>=0.8,<1",
+    # langchain boundary primitives
+    "langchain-core>=0.3,<0.4",
+    "langchain-text-splitters>=0.3,<0.4",
+    "langchain-experimental>=0.3,<0.4",
+    "langchain-openai>=0.2,<0.4",
+    # docling: pdf/docx/pptx structural parsing
+    "docling>=2.15,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<9",
+    "mypy>=1.13,<2",
+    "pandas-stubs>=2.2",
+    "types-openpyxl>=3.1",
+    # fixture generation
+    "python-docx>=1.1,<2",
+    "python-pptx>=1.0,<2",
+    "reportlab>=4.2,<5",
+    "pillow>=10.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["rag_ingestion"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+disallow_any_generics = true
+plugins = ["pydantic.mypy"]
+
+# Third-party libs with incomplete/awkward stubs. Treated as Any and confined to
+# the parser/chunker seams — which is exactly why format logic is quarantined
+# behind the DocumentParser Protocol. langchain_core stays fully typed.
+[[tool.mypy.overrides]]
+module = [
+    "docling.*",
+    "docling_core.*",
+    "langchain_experimental.*",
+    "langchain_openai.*",
+]
+follow_imports = "skip"
+follow_imports_for_stubs = true
+ignore_missing_imports = true
+
+# Fixture-generation libs (tests only) ship no type stubs.
+[[tool.mypy.overrides]]
+module = [
+    "reportlab.*",
+    "pptx.*",
+    "docx.*",
+]
+ignore_missing_imports = true
