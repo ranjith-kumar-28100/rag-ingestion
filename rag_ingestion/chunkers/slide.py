@@ -44,6 +44,9 @@ class SlideChunker:
         self._embeddings = embeddings
 
     def chunk(self, doc: IRDocument, cfg: IngestionConfig) -> list[Chunk]:
+        from ..utils.tokens import configure_token_counter
+
+        configure_token_counter(cfg)
         empty = 0
         slides: list[tuple[Section, str]] = []
         for section in doc.sections:

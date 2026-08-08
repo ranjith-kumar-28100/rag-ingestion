@@ -93,6 +93,9 @@ class TableChunker:
     file_types: set[str] = set()
 
     def chunk(self, doc: IRDocument, cfg: IngestionConfig) -> list[Chunk]:
+        from ..utils.tokens import configure_token_counter
+
+        configure_token_counter(cfg)
         root = synthetic_root_parent(doc)
         chunks: list[Chunk] = [root]
         ordinal = 0

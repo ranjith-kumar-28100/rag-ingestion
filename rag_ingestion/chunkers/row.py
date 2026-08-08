@@ -25,6 +25,9 @@ class RowChunker:
     file_types: set[str] = {"xlsx", "csv"}
 
     def chunk(self, doc: IRDocument, cfg: IngestionConfig) -> list[Chunk]:
+        from ..utils.tokens import configure_token_counter
+
+        configure_token_counter(cfg)
         sheets_meta: dict[str, Any] = doc.raw_metadata.get("sheets", {})
         chunks: list[Chunk] = []
         parent_ord = 0

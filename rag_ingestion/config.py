@@ -68,6 +68,13 @@ class IngestionConfig(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     toc_inference_deployment: str = "gpt-4o-mini"  # azure only
 
+    # token counting ----------------------------------------------------------
+    # "auto" -> HF tokenizer when offline/local, tiktoken when online (azure);
+    # or force "tiktoken" / "hf". token_encoder_model defaults to the local
+    # embedding model's tokenizer when the HF backend is used.
+    token_counter: str = "auto"
+    token_encoder_model: str | None = None
+
     # quality gates -----------------------------------------------------------
     min_chars_per_page: int = 50
 

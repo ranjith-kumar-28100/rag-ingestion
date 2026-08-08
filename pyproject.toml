@@ -24,6 +24,8 @@ dependencies = [
     "langchain-ollama>=0.2,<0.4",
     # local embeddings (default provider) — no external calls
     "sentence-transformers>=3.0,<6",
+    # local HF tokenizer for offline token counting (also a st dep)
+    "transformers>=4.40,<6",
     # docling: pdf/docx/pptx structural parsing
     "docling>=2.15,<3",
 ]
@@ -71,6 +73,7 @@ module = [
     "langchain_openai.*",
     "langchain_ollama.*",
     "sentence_transformers.*",
+    "transformers.*",
 ]
 follow_imports = "skip"
 follow_imports_for_stubs = true

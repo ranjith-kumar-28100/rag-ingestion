@@ -136,12 +136,24 @@ A `.env` file is read if present.
 | `toc_inference_deployment` | `gpt-4o-mini` | Azure deployment for Tier 3 (provider=azure) |
 | `max_heading_candidates` | `500` | Above this, skip Tier 3 → PAGE |
 | `max_heading_chars` | `120` | Max length of a heading candidate line |
+| `token_counter` | `auto` | `auto` (HF when offline/local, tiktoken when online), `tiktoken`, or `hf` |
+| `token_encoder_model` | `None` | HF tokenizer for the `hf` backend; defaults to `local_embedding_model` |
+| `offline` | `False` | Air-gap: force offline env + no telemetry; rejects Azure providers |
 | `min_chars_per_page` | `50` | Quality gate; below this → `LowExtractionQualityError` |
 | `max_workers` | `4` | `ingest_directory` thread pool size |
 | `enable_embedding_cache` | `True` | Cache embeddings by content hash |
 | `cache_dir` | `.ingest_cache` | Embedding cache location |
 
 No thresholds are hardcoded in the chunkers — they all read from this object.
+
+**Token counting.** Counts drive chunk *sizing* (child/parent/table/row budgets),
+so the `auto` default matches the counter to the pipeline: the local embedding
+model's HF tokenizer when offline/local, `tiktoken` (`cl100k_base`) when using
+Azure. The HF default is the *embedder's* tokenizer, which is the right proxy for
+how children are embedded and indexed. It is **not** Mistral's tokenizer — the
+Tier-3 LLM only sees short heading lines, so that doesn't matter there; but if you
+size parents against a downstream local LLM and want exact counts, set
+`token_encoder_model` to that model's tokenizer (e.g. a Mistral tokenizer id).
 
 ---
 

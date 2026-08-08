@@ -41,8 +41,13 @@ def fake_embeddings() -> FakeEmbeddings:
 
 @pytest.fixture
 def cfg(tmp_path: Path) -> IngestionConfig:
-    # cache disabled by default so tests are hermetic; enable per-test when needed
-    return IngestionConfig(cache_dir=tmp_path / "cache", enable_embedding_cache=False)
+    # cache disabled + tiktoken pinned so tests are hermetic and fast; the HF
+    # token backend and auto-selection are covered directly in test_tokens.py.
+    return IngestionConfig(
+        cache_dir=tmp_path / "cache",
+        enable_embedding_cache=False,
+        token_counter="tiktoken",
+    )
 
 
 @pytest.fixture(scope="session")

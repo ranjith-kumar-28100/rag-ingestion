@@ -71,6 +71,10 @@ class SemanticParentChildChunker:
         from langchain_experimental.text_splitter import SemanticChunker
         from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+        from ..utils.tokens import configure_token_counter
+
+        configure_token_counter(cfg)
+
         semantic = SemanticChunker(
             self._get_embeddings(cfg),
             breakpoint_threshold_type=cfg.breakpoint_threshold_type,

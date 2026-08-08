@@ -62,6 +62,9 @@ class IngestionPipeline:
             from .offline import enforce_offline
 
             enforce_offline()
+        from .utils.tokens import configure_token_counter
+
+        configure_token_counter(config)
         self.registry = ParserRegistry(config)
 
         spc = SemanticParentChildChunker(embeddings)
