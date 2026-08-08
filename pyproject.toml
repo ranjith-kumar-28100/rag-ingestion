@@ -20,6 +20,8 @@ dependencies = [
     "langchain-text-splitters>=0.3,<0.4",
     "langchain-experimental>=0.3,<0.4",
     "langchain-openai>=0.2,<0.4",
+    # local embeddings (default provider) — no external calls
+    "sentence-transformers>=3.0,<6",
     # docling: pdf/docx/pptx structural parsing
     "docling>=2.15,<3",
 ]
@@ -65,6 +67,7 @@ module = [
     "docling_core.*",
     "langchain_experimental.*",
     "langchain_openai.*",
+    "sentence_transformers.*",
 ]
 follow_imports = "skip"
 follow_imports_for_stubs = true

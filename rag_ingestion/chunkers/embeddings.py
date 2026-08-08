@@ -21,14 +21,58 @@ from ..utils.ids import content_hash
 logger = logging.getLogger("rag_ingestion.chunkers.embeddings")
 
 
+class SentenceTransformerEmbeddings(Embeddings):
+    """Fully local embeddings via sentence-transformers — no external calls.
+
+    The model is loaded lazily on first use and reused. Vectors are L2-normalized
+    so cosine/percentile breakpoints in SemanticChunker behave consistently.
+    """
+
+    def __init__(self, model_name: str, device: str = "cpu", batch_size: int = 64) -> None:
+        self._model_name = model_name
+        self._device = device
+        self._batch_size = batch_size
+        self._model: object | None = None
+
+    def _get_model(self) -> object:
+        if self._model is None:
+            from sentence_transformers import SentenceTransformer
+
+            self._model = SentenceTransformer(self._model_name, device=self._device)
+        return self._model
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        model = self._get_model()
+        vectors = model.encode(  # type: ignore[attr-defined]
+            list(texts),
+            batch_size=self._batch_size,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+        )
+        return [v.tolist() for v in vectors]
+
+    def embed_query(self, text: str) -> list[float]:
+        return self.embed_documents([text])[0]
+
+
+def build_local_embeddings(cfg: IngestionConfig) -> Embeddings:
+    """Construct the local sentence-transformers embeddings."""
+    return SentenceTransformerEmbeddings(
+        cfg.local_embedding_model,
+        device=cfg.local_embedding_device,
+        batch_size=cfg.embedding_batch_size,
+    )
+
+
 def build_azure_embeddings(cfg: IngestionConfig) -> Embeddings:
     """Construct the AzureOpenAI embeddings client (lazy import)."""
     from langchain_openai import AzureOpenAIEmbeddings
 
     if not cfg.azure_openai_endpoint or cfg.azure_openai_api_key is None:
         raise ValueError(
-            "Semantic chunking requires azure_openai_endpoint and azure_openai_api_key. "
-            "Set RAG_INGEST_AZURE_OPENAI_ENDPOINT / RAG_INGEST_AZURE_OPENAI_API_KEY."
+            "Azure embeddings require azure_openai_endpoint and azure_openai_api_key. "
+            "Set RAG_INGEST_AZURE_OPENAI_ENDPOINT / RAG_INGEST_AZURE_OPENAI_API_KEY, "
+            "or use RAG_INGEST_EMBEDDING_PROVIDER=sentence_transformers for local embeddings."
         )
     embeddings: Embeddings = AzureOpenAIEmbeddings(
         azure_endpoint=cfg.azure_openai_endpoint,
@@ -37,6 +81,19 @@ def build_azure_embeddings(cfg: IngestionConfig) -> Embeddings:
         chunk_size=cfg.embedding_batch_size,
     )
     return embeddings
+
+
+def build_embeddings(cfg: IngestionConfig) -> Embeddings:
+    """Provider dispatcher: local sentence-transformers or AzureOpenAI."""
+    provider = cfg.embedding_provider.lower()
+    if provider in ("sentence_transformers", "local", "st"):
+        return build_local_embeddings(cfg)
+    if provider == "azure":
+        return build_azure_embeddings(cfg)
+    raise ValueError(
+        f"Unknown embedding_provider {cfg.embedding_provider!r}; "
+        "expected 'sentence_transformers' or 'azure'."
+    )
 
 
 class CachingEmbeddings(Embeddings):

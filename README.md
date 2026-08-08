@@ -32,10 +32,15 @@ uv pip install -e ".[dev]"
 ```python
 from rag_ingestion import IngestionConfig, IngestionPipeline
 
-config = IngestionConfig(
-    azure_openai_endpoint="https://<resource>.openai.azure.com/",
-    azure_openai_api_key="…",          # or set RAG_INGEST_AZURE_OPENAI_API_KEY
-)
+# Local by default: sentence-transformers, no credentials needed.
+config = IngestionConfig()
+
+# ...or use Azure embeddings instead:
+# config = IngestionConfig(
+#     embedding_provider="azure",
+#     azure_openai_endpoint="https://<resource>.openai.azure.com/",
+#     azure_openai_api_key="…",        # or set RAG_INGEST_AZURE_OPENAI_API_KEY
+# )
 pipeline = IngestionPipeline(config)
 
 result = pipeline.ingest_file("report.pdf")
@@ -49,9 +54,11 @@ for chunk in result.chunks:
 results = pipeline.ingest_directory("./docs", glob="**/*")
 ```
 
-Embeddings are only used by the semantic chunker (pdf/docx). To run without Azure
-(tabular formats, or tests), pass a mock embeddings object:
-`IngestionPipeline(config, embeddings=my_fake_embeddings)`.
+Embeddings are only used by the semantic chunker (pdf/docx). By default they run
+**fully local** via sentence-transformers — the model downloads once from the HF
+hub and is cached, and nothing leaves your machine. Switch to Azure with
+`embedding_provider="azure"`, or inject any embeddings object (e.g. a mock in
+tests): `IngestionPipeline(config, embeddings=my_embeddings)`.
 
 Run the demo (offline, mocked embeddings):
 
@@ -99,10 +106,13 @@ A `.env` file is read if present.
 
 | Setting | Default | Purpose |
 |---|---|---|
-| `azure_openai_endpoint` | `None` | Azure OpenAI endpoint (semantic chunker only) |
-| `azure_openai_api_key` | `None` | Azure OpenAI key (`SecretStr`) |
-| `embedding_deployment` | `text-embedding-3-large` | Embedding deployment name |
+| `embedding_provider` | `sentence_transformers` | `sentence_transformers` (local) or `azure` |
+| `local_embedding_model` | `sentence-transformers/all-MiniLM-L6-v2` | HF model id for local embeddings |
+| `local_embedding_device` | `cpu` | `cpu` or `cuda` for local embeddings |
 | `embedding_batch_size` | `64` | Embedding batch size |
+| `azure_openai_endpoint` | `None` | Azure OpenAI endpoint (provider=azure only) |
+| `azure_openai_api_key` | `None` | Azure OpenAI key (`SecretStr`) |
+| `embedding_deployment` | `text-embedding-3-large` | Azure embedding deployment name |
 | `breakpoint_threshold_type` | `percentile` | SemanticChunker breakpoint type |
 | `breakpoint_threshold_amount` | `95.0` | SemanticChunker breakpoint amount |
 | `max_parent_tokens` | `3000` | Split parents larger than this at paragraph boundaries |

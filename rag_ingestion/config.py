@@ -20,13 +20,21 @@ class IngestionConfig(BaseSettings):
     )
 
     # embeddings (semantic chunker only) --------------------------------------
-    # Optional so the tabular/pptx paths and unit tests can run without Azure
-    # credentials. The semantic chunker validates presence lazily when it needs
-    # to embed.
+    # Provider selects where embeddings come from:
+    #   "sentence_transformers" -> fully local, no credentials (default)
+    #   "azure"                 -> AzureOpenAIEmbeddings
+    embedding_provider: str = "sentence_transformers"
+    embedding_batch_size: int = 64
+
+    # local (sentence-transformers) — used when provider == sentence_transformers
+    local_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    local_embedding_device: str = "cpu"
+
+    # azure — optional so the local/tabular/pptx paths and unit tests run without
+    # credentials. Validated lazily only when the azure provider actually embeds.
     azure_openai_endpoint: str | None = None
     azure_openai_api_key: SecretStr | None = None
     embedding_deployment: str = "text-embedding-3-large"
-    embedding_batch_size: int = 64
 
     # semantic chunking -------------------------------------------------------
     breakpoint_threshold_type: str = "percentile"

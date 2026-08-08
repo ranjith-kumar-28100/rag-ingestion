@@ -118,9 +118,9 @@ class SlideChunker:
 
         emb = self._embeddings
         if emb is None:
-            from .embeddings import CachingEmbeddings, build_azure_embeddings
+            from .embeddings import CachingEmbeddings, build_embeddings
 
-            emb = CachingEmbeddings(build_azure_embeddings(cfg), cfg.cache_dir, enabled=cfg.enable_embedding_cache)
+            emb = CachingEmbeddings(build_embeddings(cfg), cfg.cache_dir, enabled=cfg.enable_embedding_cache)
             self._embeddings = emb
         semantic = SemanticChunker(
             emb,
