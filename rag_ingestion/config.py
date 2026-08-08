@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -75,3 +75,28 @@ class IngestionConfig(BaseSettings):
     max_workers: int = 4
     enable_embedding_cache: bool = True
     cache_dir: Path = Path(".ingest_cache")
+
+    # air-gap: force local libs offline + no telemetry (see rag_ingestion.offline).
+    # Models must be pre-cached; missing assets then fail loudly instead of being
+    # fetched. Does not affect which provider is used — set the *_provider fields
+    # to their local values (the defaults) to keep document data on the machine.
+    offline: bool = False
+
+    @model_validator(mode="after")
+    def _no_azure_when_offline(self) -> "IngestionConfig":
+        """Fail fast if offline is requested but an Azure provider would egress data."""
+        if self.offline:
+            outbound = [
+                name
+                for name, value in (
+                    ("embedding_provider", self.embedding_provider),
+                    ("llm_provider", self.llm_provider),
+                )
+                if value.lower() == "azure"
+            ]
+            if outbound:
+                raise ValueError(
+                    f"offline=True but {', '.join(outbound)} = 'azure' would send document "
+                    "data off-machine. Use the local providers (sentence_transformers / ollama)."
+                )
+        return self

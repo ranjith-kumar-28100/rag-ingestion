@@ -58,6 +58,10 @@ class IngestionResult(BaseModel):
 class IngestionPipeline:
     def __init__(self, config: IngestionConfig, embeddings: Embeddings | None = None) -> None:
         self.config = config
+        if config.offline:
+            from .offline import enforce_offline
+
+            enforce_offline()
         self.registry = ParserRegistry(config)
 
         spc = SemanticParentChildChunker(embeddings)

@@ -180,6 +180,41 @@ Most assertions run against synthetic IR element lists, so the tier ladder,
 chunkers, and IR contract are verified without downloading Docling models or
 calling Azure. See `tests/` for the §9 coverage matrix.
 
+## Air-gapped / offline operation
+
+In the default configuration **no document content leaves the machine**:
+embeddings run locally (sentence-transformers), the Tier-3 LLM talks to a local
+Ollama daemon, and Docling parses in-process. The Azure providers are the only
+paths that transmit your data, and they are opt-in.
+
+The only outbound connections in the default setup are **one-time downloads of
+public model/vocab files** (sentence-transformers weights, Docling OCR/TableFormer
+models, and the `tiktoken` BPE vocab) — these contain none of your data. To run
+fully air-gapped, pre-stage them once on a networked machine, then enforce offline
+mode:
+
+```bash
+# 1) pre-cache models while online (caches under ~/.cache/huggingface, etc.)
+python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+python -c "import tiktoken; tiktoken.get_encoding('cl100k_base')"
+docling-tools models download          # Docling OCR/TableFormer models
+ollama pull mistral                    # only if you enable Tier-3 TOC inference
+
+# 2) run offline — missing assets now fail loudly instead of being fetched
+export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+```
+
+```python
+config = IngestionConfig(offline=True)   # forces offline env + no telemetry
+pipeline = IngestionPipeline(config)     # raises if any provider is 'azure'
+```
+
+`offline=True` sets `HF_HUB_OFFLINE` / `TRANSFORMERS_OFFLINE`, disables HF/library
+telemetry and LangChain tracing, and **rejects config that pairs offline with an
+Azure provider** (which would egress data). For the strongest guarantee, also
+export those env vars before launching Python and/or block egress at the network
+layer.
+
 ## Out of scope
 
 Embedding, vector-store writes, index creation, retrieval/reranking, the

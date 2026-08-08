@@ -6,6 +6,7 @@ file in -> list[Chunk] out. No embedding, indexing, or retrieval happens here.
 from __future__ import annotations
 
 from .config import IngestionConfig
+from .offline import enforce_offline
 from .models import (
     BlockType,
     Chunk,
@@ -32,6 +33,7 @@ __all__ = [
     "ChunkRole",
     "ParserError",
     "LowExtractionQualityError",
+    "enforce_offline",
 ]
 
 __version__ = "0.1.0"
