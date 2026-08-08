@@ -97,6 +97,11 @@ heuristic heading *candidates* (it never generates a TOC), validates returned
 `line_id`s against what was submitted, clamps levels 1–4, retries once on bad
 JSON, and falls back to `PAGE` — it never raises.
 
+The Tier-3 chat model defaults to **local Ollama** (`llm_provider="ollama"`,
+`ollama_model="mistral"`) — run `ollama pull mistral` with the daemon up. Set
+`llm_provider="azure"` to use AzureChatOpenAI instead. Tier 3 is off by default
+(`enable_llm_toc_inference=False`).
+
 ---
 
 ## Config reference
@@ -125,7 +130,10 @@ A `.env` file is read if present.
 | `min_headings_for_structure` | `2` | Tier 1 heading-count threshold |
 | `min_heading_page_coverage` | `0.6` | Tier 1 page-coverage threshold |
 | `enable_llm_toc_inference` | `False` | Enable Tier 3 LLM heading inference |
-| `toc_inference_deployment` | `gpt-4o-mini` | Deployment for Tier 3 |
+| `llm_provider` | `ollama` | Tier 3 chat LLM: `ollama` (local) or `azure` |
+| `ollama_model` | `mistral` | Ollama model for Tier 3 (e.g. Mistral 7B) |
+| `ollama_base_url` | `http://localhost:11434` | Ollama daemon URL |
+| `toc_inference_deployment` | `gpt-4o-mini` | Azure deployment for Tier 3 (provider=azure) |
 | `max_heading_candidates` | `500` | Above this, skip Tier 3 → PAGE |
 | `max_heading_chars` | `120` | Max length of a heading candidate line |
 | `min_chars_per_page` | `50` | Quality gate; below this → `LowExtractionQualityError` |

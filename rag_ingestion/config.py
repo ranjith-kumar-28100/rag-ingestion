@@ -57,9 +57,16 @@ class IngestionConfig(BaseSettings):
     min_headings_for_structure: int = 2
     min_heading_page_coverage: float = 0.6
     enable_llm_toc_inference: bool = False
-    toc_inference_deployment: str = "gpt-4o-mini"
     max_heading_candidates: int = 500
     max_heading_chars: int = 120
+
+    # tier-3 TOC-inference LLM provider:
+    #   "ollama" -> local Ollama (default), e.g. Mistral 7B
+    #   "azure"  -> AzureChatOpenAI (uses toc_inference_deployment)
+    llm_provider: str = "ollama"
+    ollama_model: str = "mistral"
+    ollama_base_url: str = "http://localhost:11434"
+    toc_inference_deployment: str = "gpt-4o-mini"  # azure only
 
     # quality gates -----------------------------------------------------------
     min_chars_per_page: int = 50

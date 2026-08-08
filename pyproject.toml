@@ -20,6 +20,8 @@ dependencies = [
     "langchain-text-splitters>=0.3,<0.4",
     "langchain-experimental>=0.3,<0.4",
     "langchain-openai>=0.2,<0.4",
+    # local llm for tier-3 toc inference (default provider) — via Ollama
+    "langchain-ollama>=0.2,<0.4",
     # local embeddings (default provider) — no external calls
     "sentence-transformers>=3.0,<6",
     # docling: pdf/docx/pptx structural parsing
@@ -67,6 +69,7 @@ module = [
     "docling_core.*",
     "langchain_experimental.*",
     "langchain_openai.*",
+    "langchain_ollama.*",
     "sentence_transformers.*",
 ]
 follow_imports = "skip"

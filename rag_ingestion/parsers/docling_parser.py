@@ -546,18 +546,35 @@ class DoclingParser:
         return 0
 
     # -- default LLM classifier (lazy) --------------------------------------- #
+    def _build_llm(self) -> Any:
+        """Build the Tier-3 chat LLM per config (local Ollama default, or Azure)."""
+        provider = self.cfg.llm_provider.lower()
+        if provider in ("ollama", "local"):
+            from langchain_ollama import ChatOllama
+
+            return ChatOllama(
+                model=self.cfg.ollama_model,
+                base_url=self.cfg.ollama_base_url,
+                temperature=0,
+            )
+        if provider == "azure":
+            from langchain_openai import AzureChatOpenAI
+
+            if not self.cfg.azure_openai_endpoint or self.cfg.azure_openai_api_key is None:
+                raise ValueError(
+                    "azure llm_provider requires azure_openai_endpoint and azure_openai_api_key, "
+                    "or use RAG_INGEST_LLM_PROVIDER=ollama for a local model."
+                )
+            return AzureChatOpenAI(
+                azure_endpoint=self.cfg.azure_openai_endpoint,
+                api_key=self.cfg.azure_openai_api_key.get_secret_value(),
+                azure_deployment=self.cfg.toc_inference_deployment,
+                temperature=0,
+            )
+        raise ValueError(f"Unknown llm_provider {self.cfg.llm_provider!r}; expected 'ollama' or 'azure'.")
+
     def _default_classifier(self) -> TocClassifier:
-        from langchain_openai import AzureChatOpenAI
-
-        if not self.cfg.azure_openai_endpoint or self.cfg.azure_openai_api_key is None:
-            raise ValueError("LLM TOC inference enabled but Azure OpenAI is not configured")
-
-        llm = AzureChatOpenAI(
-            azure_endpoint=self.cfg.azure_openai_endpoint,
-            api_key=self.cfg.azure_openai_api_key.get_secret_value(),
-            azure_deployment=self.cfg.toc_inference_deployment,
-            temperature=0,
-        )
+        llm = self._build_llm()
 
         def classify(payload: str) -> str:
             prompt = (
