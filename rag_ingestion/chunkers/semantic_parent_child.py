@@ -114,7 +114,7 @@ class SemanticParentChildChunker:
                         table_parent_id = parent.chunk_id
 
                     child_ord = self._emit_children(
-                        doc, section, parent, semantic, recursive, cfg, chunks, child_ord
+                        doc, parent, semantic, recursive, cfg, chunks, child_ord
                     )
 
             # tables in this section attach to the section's (first) parent
@@ -137,7 +137,6 @@ class SemanticParentChildChunker:
     def _emit_children(
         self,
         doc: IRDocument,
-        section: Section,
         parent: Chunk,
         semantic: Any,
         recursive: Any,
