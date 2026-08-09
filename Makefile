@@ -21,7 +21,9 @@ help:
 
 # --- Docker ---------------------------------------------------------------
 prefetch:
-	docker compose --profile prefetch run --rm prefetch
+	# --build is required: the prefetch service sits behind a compose profile, so a
+	# plain `docker compose build` skips it and would run a stale image.
+	docker compose --profile prefetch run --rm --build prefetch
 
 up:
 	docker compose up -d --build

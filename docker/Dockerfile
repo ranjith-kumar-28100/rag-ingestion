@@ -32,8 +32,15 @@ COPY docker ./docker
 # broke torchvision::nms against CPU torch. --index-strategy unsafe-best-match
 # lets uv pull these two from the extra index while everything else resolves
 # from PyPI. CPU wheels also avoid the multi-GB CUDA download unused on CPU/WSL2.
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system \
+# uv --no-cache is REQUIRED here, not an optimization. torchvision publishes the
+# CUDA build to PyPI with plain metadata version "0.28.0" while the cpu index has
+# "0.28.0+cpu". uv's cache keys the unpacked wheel loosely enough that, once the
+# CUDA wheel is cached, it LINKS that stale wheel even when resolution correctly
+# selects 0.28.0+cpu — silently reintroducing the torchvision::nms crash against
+# CPU torch. Disabling the cache forces the right wheel to be fetched and linked
+# every time. (Verified: with the cache, on-disk torchvision is 0.28.0+cu130
+# despite the resolver reporting +cpu; with --no-cache it is 0.28.0+cpu.)
+RUN uv pip install --system --no-cache \
         --extra-index-url https://download.pytorch.org/whl/cpu \
         --index-strategy unsafe-best-match \
         "torch==2.13.0+cpu" "torchvision==0.28.0+cpu" \
