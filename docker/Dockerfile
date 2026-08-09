@@ -16,12 +16,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Install the CPU-only torch build FIRST. The default PyPI torch wheel drags in
+# Install the CPU-only torch stack FIRST. The default PyPI wheels drag in
 # multi-GB NVIDIA CUDA libraries we never use on CPU/WSL2; the cpu index is a
-# fraction of the size and download time. sentence-transformers/docling then
-# see torch as already satisfied. The cache mount keeps wheels between builds.
+# fraction of the size and download time. torch AND torchvision must be a
+# matched pair from the SAME index — installing only torch here lets docling
+# pull a CUDA torchvision from PyPI, whose compiled ops (torchvision::nms) then
+# fail to bind to CPU torch. With both installed, the project install below
+# sees them satisfied and won't refetch. The cache mount reuses wheels.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system torch --index-url https://download.pytorch.org/whl/cpu
+    uv pip install --system torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
 # Project metadata + source. Editable install, so code edits don't need a
 # reinstall; and with the uv cache mount a rebuild re-links from cache instead
