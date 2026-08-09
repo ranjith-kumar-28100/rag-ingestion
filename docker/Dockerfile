@@ -16,19 +16,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Install the CPU-only torch stack FIRST. The default PyPI wheels drag in
-# multi-GB NVIDIA CUDA libraries we never use on CPU/WSL2; the cpu index is a
-# fraction of the size and download time. torch AND torchvision must be a
-# matched pair from the SAME index — installing only torch here lets docling
-# pull a CUDA torchvision from PyPI, whose compiled ops (torchvision::nms) then
-# fail to bind to CPU torch. With both installed, the project install below
-# sees them satisfied and won't refetch. The cache mount reuses wheels.
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system torch torchvision --index-url https://download.pytorch.org/whl/cpu
-
 # Project metadata + source. Editable install, so code edits don't need a
-# reinstall; and with the uv cache mount a rebuild re-links from cache instead
-# of re-downloading the heavy wheels (docling, torch, transformers, ...).
+# reinstall; the uv cache mount re-links heavy wheels from cache on rebuild.
 COPY pyproject.toml README.md ./
 COPY rag_ingestion ./rag_ingestion
 COPY service ./service
@@ -37,8 +26,14 @@ COPY alembic ./alembic
 COPY alembic.ini ./
 COPY docker ./docker
 
+# --torch-backend=cpu resolves torch + torchvision + the whole graph in ONE
+# pass, pulling matched CPU wheels from the PyTorch index. A two-phase install
+# (cpu torch first, then the project) let the second resolution swap in a
+# mismatched torchvision, whose ops (torchvision::nms) fail to bind to CPU
+# torch. One unified resolution keeps the pair consistent — and CPU wheels
+# avoid the multi-GB CUDA download we never use on CPU/WSL2.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system -e ".[service]"
+    uv pip install --system --torch-backend=cpu -e ".[service]"
 
 EXPOSE 8000 8501
 
