@@ -26,14 +26,18 @@ COPY alembic ./alembic
 COPY alembic.ini ./
 COPY docker ./docker
 
-# --torch-backend=cpu resolves torch + torchvision + the whole graph in ONE
-# pass, pulling matched CPU wheels from the PyTorch index. A two-phase install
-# (cpu torch first, then the project) let the second resolution swap in a
-# mismatched torchvision, whose ops (torchvision::nms) fail to bind to CPU
-# torch. One unified resolution keeps the pair consistent — and CPU wheels
-# avoid the multi-GB CUDA download we never use on CPU/WSL2.
+# Pin torch + torchvision to matched "+cpu" builds in the SAME resolution as the
+# project. The "+cpu" local version exists ONLY on the PyTorch cpu index, so uv
+# cannot substitute a CUDA torchvision from PyPI — that substitution is what
+# broke torchvision::nms against CPU torch. --index-strategy unsafe-best-match
+# lets uv pull these two from the extra index while everything else resolves
+# from PyPI. CPU wheels also avoid the multi-GB CUDA download unused on CPU/WSL2.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --torch-backend=cpu -e ".[service]"
+    uv pip install --system \
+        --extra-index-url https://download.pytorch.org/whl/cpu \
+        --index-strategy unsafe-best-match \
+        "torch==2.13.0+cpu" "torchvision==0.28.0+cpu" \
+        -e ".[service]"
 
 EXPOSE 8000 8501
 
