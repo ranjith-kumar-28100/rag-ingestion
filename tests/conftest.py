@@ -6,6 +6,15 @@ assertions run on synthetic ParsedElement lists so they never touch Docling.
 
 from __future__ import annotations
 
+import os
+
+# Point the microservice at a throwaway DB/dirs BEFORE service modules import
+# (service.db builds its engine at import time). Harmless for non-service tests.
+os.environ.setdefault("RAG_SVC_DATABASE_URL", "sqlite:///./data/test_rag_service.db")
+os.environ.setdefault("RAG_SVC_DATA_DIR", "./data/test")
+os.environ.setdefault("RAG_SVC_UPLOAD_DIR", "./data/test/uploads")
+os.environ.setdefault("RAG_SVC_OUTPUT_DIR", "./data/test/output")
+
 import hashlib
 from pathlib import Path
 
@@ -48,6 +57,18 @@ def cfg(tmp_path: Path) -> IngestionConfig:
         enable_embedding_cache=False,
         token_counter="tiktoken",
     )
+
+
+@pytest.fixture
+def service_db() -> object:
+    """Fresh service DB schema per test (drop + create on the shared engine)."""
+    from service import models  # noqa: F401  (register tables on Base.metadata)
+    from service.db import Base, engine
+
+    Base.metadata.drop_all(engine)
+    Base.metadata.create_all(engine)
+    yield None
+    Base.metadata.drop_all(engine)
 
 
 @pytest.fixture(scope="session")

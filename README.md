@@ -227,6 +227,79 @@ Azure provider** (which would egress data). For the strongest guarantee, also
 export those env vars before launching Python and/or block egress at the network
 layer.
 
+## Microservice + Streamlit UI
+
+An optional local service wraps the module with a job queue and a small UI, for
+ingesting files without writing Python. It adds orchestration only — parsing and
+chunking still come entirely from `rag_ingestion`, and everything stays on the
+machine (workers run with `offline=True`).
+
+```
+Streamlit ──▶ FastAPI ──▶ Celery task ──▶ Redis ──▶ worker(s) ──▶ output/<job>/<file>.jsonl
+   (UI)      POST /jobs                    (queue)   (pipeline)          ▲
+                │                                                        │
+                └──────────── SQLite (jobs + job_files, SQLAlchemy) ◀────┘
+                                     GET /jobs/{id}  (percent progress)
+```
+
+- **Batch jobs.** One upload of N files = one `job` with N `job_files`; each file
+  is its own Celery task, so one bad file never aborts the batch.
+- **Graceful under load.** `acks_late` + `prefetch_multiplier=1`: a worker holds
+  one heavy file at a time and re-queues it on crash. Scale by adding workers.
+- **Progress.** Percent = mean of per-file progress (queued 0 / running 50 /
+  done 100), polled via `GET /jobs/{id}`.
+- **Storage.** Chunks are written to `output/<job>/<file>.jsonl`; SQLite keeps
+  only job/file progress + stats (SQLAlchemy ORM, Alembic migrations).
+
+### API
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/jobs` | multipart upload → `{id, status, total_files}` (202) |
+| `GET` | `/jobs` | recent job summaries |
+| `GET` | `/jobs/{id}` | job + per-file status and percent |
+| `GET` | `/jobs/{id}/chunks` | produced chunks (`?file_id`, `?limit`, `?offset`) |
+| `GET` | `/health` | liveness |
+
+### Run with Docker (recommended)
+
+Fully local and offline at runtime. Models come from a prefetched named volume;
+`api`/`worker` run with `HF_HUB_OFFLINE=1` and `RAG_INGEST_OFFLINE=true`.
+
+```bash
+make prefetch     # ONCE, online: downloads models into the model-cache volume
+make up           # build + start redis, api, worker, ui (offline)
+# UI:  http://localhost:8501      API docs: http://localhost:8000/docs
+make logs         # tail;   make down to stop
+```
+
+The only network access is `make prefetch` (public model/vocab files, no
+document data). After that, unplug the network and it still runs.
+
+### Run locally (bare processes)
+
+Needs a local Redis and the `service` extras (`uv pip install -e ".[service,dev]"`):
+
+```bash
+make migrate       # alembic upgrade head  (creates the SQLite schema)
+make dev-api       # uvicorn service.api:app --reload   (:8000)
+make dev-worker    # celery -A service.celery_app worker (another terminal)
+make dev-ui        # streamlit run ui/app.py             (:8501)
+```
+
+### Migrations
+
+The DB is defined with SQLAlchemy 2.0 models (`service/models.py`) and versioned
+with Alembic (`alembic/`). Change a model, then:
+
+```bash
+make revision m="add foo column"   # autogenerate
+make migrate                       # apply
+```
+
+Swapping SQLite for Postgres is only a `RAG_SVC_DATABASE_URL` change — the ORM
+and migrations are unchanged.
+
 ## Out of scope
 
 Embedding, vector-store writes, index creation, retrieval/reranking, the

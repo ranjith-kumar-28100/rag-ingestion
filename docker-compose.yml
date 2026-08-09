@@ -1,0 +1,83 @@
+# Local, self-contained stack. No document data leaves the machine:
+# embeddings/LLM/parsing all run in-container against a prefetched model cache,
+# and api/worker run with HF_HUB_OFFLINE=1 + RAG_INGEST_OFFLINE=true.
+#
+#   docker compose --profile prefetch run --rm prefetch   # once, online
+#   docker compose up -d                                  # runs offline
+
+x-app: &app
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+  volumes:
+    - data:/app/data
+    - model-cache:/models:ro
+  environment: &offline-env
+    RAG_SVC_REDIS_URL: redis://redis:6379/0
+    RAG_SVC_DATABASE_URL: sqlite:////app/data/rag_service.db
+    RAG_INGEST_OFFLINE: "true"
+    HF_HOME: /models/hf
+    HF_HUB_OFFLINE: "1"
+    TRANSFORMERS_OFFLINE: "1"
+  depends_on:
+    redis:
+      condition: service_healthy
+
+services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis-data:/data
+
+  api:
+    <<: *app
+    command: sh -c "alembic upgrade head && uvicorn service.api:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  worker:
+    <<: *app
+    command: celery -A service.celery_app worker --loglevel=info --concurrency=2
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+  ui:
+    <<: *app
+    command: streamlit run ui/app.py --server.port 8501 --server.address 0.0.0.0
+    environment:
+      <<: *offline-env
+      RAG_SVC_API_BASE_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_started
+
+  # One-off, ONLINE. Populates the model-cache volume, then exits.
+  prefetch:
+    <<: *app
+    profiles: ["prefetch"]
+    command: python docker/prefetch.py
+    volumes:
+      - model-cache:/models  # read-write here (only place that downloads)
+    environment:
+      HF_HOME: /models/hf
+    depends_on: []
+
+volumes:
+  data:
+  model-cache:
+  redis-data:
