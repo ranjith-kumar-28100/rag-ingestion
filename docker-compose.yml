@@ -11,12 +11,17 @@ x-app: &app
     dockerfile: docker/Dockerfile
   volumes:
     - data:/app/data
-    - model-cache:/models:ro
+    # read-write: EasyOCR verifies/reads its models under $HOME=/models at
+    # runtime; offline is enforced by the env vars below, not by a ro mount.
+    - model-cache:/models
   environment: &offline-env
     RAG_SVC_REDIS_URL: redis://redis:6379/0
     RAG_SVC_DATABASE_URL: sqlite:////app/data/rag_service.db
     RAG_INGEST_OFFLINE: "true"
     HF_HOME: /models/hf
+    # EasyOCR (Docling OCR) caches under $HOME/.EasyOCR — point it at the volume
+    # so prefetched OCR models are found offline.
+    HOME: /models
     HF_HUB_OFFLINE: "1"
     TRANSFORMERS_OFFLINE: "1"
   depends_on:
@@ -73,8 +78,10 @@ services:
     command: python docker/prefetch.py
     volumes:
       - model-cache:/models  # read-write here (only place that downloads)
+    # ONLINE: no HF_HUB_OFFLINE here. HOME points OCR/model caches at the volume.
     environment:
       HF_HOME: /models/hf
+      HOME: /models
     depends_on: []
 
 volumes:
