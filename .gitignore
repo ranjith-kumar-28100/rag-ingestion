@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 .ingest_cache/
+# service runtime state: sqlite db, uploads, chunk outputs
+data/
 .pytest_cache/
 .mypy_cache/
 *.egg-info/
