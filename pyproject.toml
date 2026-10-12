@@ -27,7 +27,7 @@ dependencies = [
     # local HF tokenizer for offline token counting (also a st dep)
     "transformers>=4.40,<6",
     # docling: pdf/docx/pptx structural parsing
-    "docling>=2.15,<3",
+    "docling>=2.132.0,<3",
 ]
 
 [project.optional-dependencies]
